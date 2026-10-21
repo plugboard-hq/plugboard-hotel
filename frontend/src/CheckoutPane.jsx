@@ -16,10 +16,16 @@ const value = { color: theme.ink, textAlign: "right" };
 export default function CheckoutPane({ pending, onAnswer, agentTitle, onClose }) {
   const [done, setDone] = useState(null); // the answer given
   const [busy, setBusy] = useState(false);
-  const w = pending;
+  // The host clears the pending question once it is answered; keep the last one so
+  // the pane can still show what was confirmed.
+  const [last, setLast] = useState(pending);
   useEffect(() => {
-    if (pending) setDone(null);
+    if (pending) {
+      setLast(pending);
+      setDone(null);
+    }
   }, [pending?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const w = pending || last;
 
   const choose = async (option) => {
     if (busy) return;
