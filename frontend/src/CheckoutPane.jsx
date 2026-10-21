@@ -52,6 +52,13 @@ export default function CheckoutPane({ proposal, onDecide, agentTitle, onClose }
               </div>
             )}
           </div>
+          {busy && (
+            <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: theme.muted }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${theme.line}`, borderTopColor: theme.accent, animation: "pb-spin 0.8s linear infinite" }} />
+              Contacting the payment provider…
+              <style>{"@keyframes pb-spin { to { transform: rotate(360deg) } }"}</style>
+            </div>
+          )}
           {state === "pending" ? (
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button
@@ -60,13 +67,13 @@ export default function CheckoutPane({ proposal, onDecide, agentTitle, onClose }
                 disabled={busy}
                 style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid transparent", background: theme.accent, color: theme.accentInk, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: busy ? 0.6 : 1 }}
               >
-                {busy ? "Working…" : p.confirm_label || "Confirm"}
+                {busy ? "Processing payment…" : p.confirm_label || "Confirm"}
               </button>
               <button
                 type="button"
                 onClick={() => choose("decline")}
                 disabled={busy}
-                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${theme.line}`, background: theme.surface, color: theme.ink, fontSize: 14, cursor: "pointer" }}
+                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${theme.line}`, background: theme.surface, color: theme.ink, fontSize: 14, cursor: "pointer", opacity: busy ? 0.5 : 1 }}
               >
                 {p.cancel_label || "Not now"}
               </button>
