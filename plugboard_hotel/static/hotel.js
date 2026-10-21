@@ -1,82 +1,78 @@
-import { jsxs as r, jsx as i } from "react/jsx-runtime";
-import { createRoot as T } from "react-dom/client";
-import { useState as f, useEffect as R } from "react";
-import { ui as W, theme as t } from "@plugboard/sdk";
-const { Pane: N } = W, k = { display: "flex", justifyContent: "space-between", gap: 16, padding: "6px 0", fontSize: 14 }, P = { color: t.muted }, v = { color: t.ink, textAlign: "right" };
-function $({ pending: e, onAnswer: n, agentTitle: a, onClose: l }) {
-  var g;
-  const [d, h] = f(null), [u, m] = f(!1), [C, S] = f(e);
-  R(() => {
-    e && (S(e), h(null));
-  }, [e == null ? void 0 : e.id]);
-  const o = e || C, y = async (s) => {
-    if (!u) {
-      m(!0);
+import { jsxs as i, jsx as o } from "react/jsx-runtime";
+import { createRoot as C } from "react-dom/client";
+import { useState as y } from "react";
+import { ui as w, theme as n } from "@plugboard/sdk";
+const { Pane: S } = w, g = { display: "flex", justifyContent: "space-between", gap: 16, padding: "6px 0", fontSize: 14 }, z = { color: n.muted }, b = { color: n.ink, textAlign: "right" };
+function W({ proposal: r, onDecide: t, agentTitle: a, onClose: l }) {
+  const [d, f] = y(!1), [s, x] = y(null), e = r, p = (s == null ? void 0 : s.state) || (e == null ? void 0 : e.state), k = (s == null ? void 0 : s.result) || (e == null ? void 0 : e.result), v = ((e == null ? void 0 : e.amount) || "").toLowerCase().startsWith("refund"), h = async (c) => {
+    if (!(d || !e)) {
+      f(!0);
       try {
-        await (n == null ? void 0 : n(s)), h(s);
+        const m = await (t == null ? void 0 : t(e.id, c));
+        m && x(m);
       } finally {
-        m(!1);
+        f(!1);
       }
     }
-  }, z = (g = o == null ? void 0 : o.options) != null && g.length ? o.options : [(o == null ? void 0 : o.confirm_label) || "Confirm", (o == null ? void 0 : o.cancel_label) || "Cancel"], [c, b] = z, x = ((o == null ? void 0 : o.amount) || "").toLowerCase().startsWith("refund");
-  return /* @__PURE__ */ r(N, { title: "Checkout", subtitle: a ? `${a} · Hotel Aurora` : "Hotel Aurora", onClose: typeof l == "function" ? l : void 0, children: [
-    !o && !d && /* @__PURE__ */ i("div", { style: { padding: "16px 20px", color: t.muted, fontSize: 14 }, children: "Nothing to confirm right now." }),
-    (o || d) && /* @__PURE__ */ r("div", { style: { padding: "8px 20px 20px", maxWidth: 520 }, children: [
-      /* @__PURE__ */ i("div", { style: { fontSize: 17, fontWeight: 600, color: t.ink, margin: "8px 0 14px" }, children: o == null ? void 0 : o.prompt }),
-      /* @__PURE__ */ r("div", { style: { border: `1px solid ${t.line}`, borderRadius: 10, background: t.paper, padding: "8px 14px" }, children: [
-        ((o == null ? void 0 : o.lines) || []).map((s) => /* @__PURE__ */ r("div", { style: k, children: [
-          /* @__PURE__ */ i("span", { style: P, children: s.label }),
-          /* @__PURE__ */ i("span", { style: v, children: s.value })
-        ] }, s.label)),
-        (o == null ? void 0 : o.amount) && /* @__PURE__ */ r("div", { style: { ...k, borderTop: `1px solid ${t.line}`, marginTop: 6, paddingTop: 10, fontWeight: 600 }, children: [
-          /* @__PURE__ */ r("span", { style: { color: t.ink }, children: [
-            x ? "Refund to" : "Charge to",
+  };
+  return /* @__PURE__ */ i(S, { title: "Checkout", subtitle: a ? `${a} · Hotel Aurora` : "Hotel Aurora", onClose: typeof l == "function" ? l : void 0, children: [
+    !e && /* @__PURE__ */ o("div", { style: { padding: "16px 20px", color: n.muted, fontSize: 14 }, children: "Nothing to confirm right now." }),
+    e && /* @__PURE__ */ i("div", { style: { padding: "8px 20px 20px", maxWidth: 520 }, children: [
+      /* @__PURE__ */ o("div", { style: { fontSize: 17, fontWeight: 600, color: n.ink, margin: "8px 0 14px" }, children: e.prompt }),
+      /* @__PURE__ */ i("div", { style: { border: `1px solid ${n.line}`, borderRadius: 10, background: n.paper, padding: "8px 14px" }, children: [
+        (e.lines || []).map((c) => /* @__PURE__ */ i("div", { style: g, children: [
+          /* @__PURE__ */ o("span", { style: z, children: c.label }),
+          /* @__PURE__ */ o("span", { style: b, children: c.value })
+        ] }, c.label)),
+        e.amount && /* @__PURE__ */ i("div", { style: { ...g, borderTop: `1px solid ${n.line}`, marginTop: 6, paddingTop: 10, fontWeight: 600 }, children: [
+          /* @__PURE__ */ i("span", { style: { color: n.ink }, children: [
+            v ? "Refund to" : "Charge to",
             " ",
-            o.card || "your card on file"
+            e.card || "your card on file"
           ] }),
-          /* @__PURE__ */ i("span", { style: { ...v, fontVariantNumeric: "tabular-nums" }, children: o.amount })
+          /* @__PURE__ */ o("span", { style: { ...b, fontVariantNumeric: "tabular-nums" }, children: e.amount })
         ] })
       ] }),
-      d ? /* @__PURE__ */ i("div", { style: { marginTop: 16, fontSize: 14, color: d === c ? t.ok : t.muted }, children: d === c ? x ? "Refund on its way." : "Paid. Thank you." : "Nothing was charged." }) : /* @__PURE__ */ r("div", { style: { display: "flex", gap: 10, marginTop: 16 }, children: [
-        /* @__PURE__ */ i(
+      p === "pending" ? /* @__PURE__ */ i("div", { style: { display: "flex", gap: 10, marginTop: 16 }, children: [
+        /* @__PURE__ */ o(
           "button",
           {
             type: "button",
-            onClick: () => y(c),
-            disabled: u,
-            style: { flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid transparent", background: t.accent, color: t.accentInk, fontSize: 14, fontWeight: 600, cursor: "pointer" },
-            children: c
+            onClick: () => h("confirm"),
+            disabled: d,
+            style: { flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid transparent", background: n.accent, color: n.accentInk, fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: d ? 0.6 : 1 },
+            children: d ? "Working…" : e.confirm_label || "Confirm"
           }
         ),
-        /* @__PURE__ */ i(
+        /* @__PURE__ */ o(
           "button",
           {
             type: "button",
-            onClick: () => y(b),
-            disabled: u,
-            style: { padding: "10px 14px", borderRadius: 8, border: `1px solid ${t.line}`, background: t.surface, color: t.ink, fontSize: 14, cursor: "pointer" },
-            children: b
+            onClick: () => h("decline"),
+            disabled: d,
+            style: { padding: "10px 14px", borderRadius: 8, border: `1px solid ${n.line}`, background: n.surface, color: n.ink, fontSize: 14, cursor: "pointer" },
+            children: e.cancel_label || "Not now"
           }
         )
-      ] }),
-      /* @__PURE__ */ i("div", { style: { marginTop: 14, fontSize: 12, color: t.muted }, children: "Payments are taken by the hotel's payment provider; the card on file is never shown in full and never leaves the hotel's systems." })
+      ] }) : /* @__PURE__ */ o("div", { style: { marginTop: 16, fontSize: 14, color: p === "executed" ? n.ok : p === "declined" ? n.muted : n.bad }, children: k || p }),
+      /* @__PURE__ */ o("div", { style: { marginTop: 14, fontSize: 12, color: n.muted }, children: "Payments are taken by the hotel's payment provider; the card on file is never shown in full and never leaves the hotel's systems. Nothing happens until you confirm here, and you can come back to this later." })
     ] })
   ] });
 }
-const j = { CheckoutPane: $ }, p = /* @__PURE__ */ new WeakMap();
-function O(e, n) {
-  const a = j[n.component];
-  let l = p.get(e);
-  l || (l = T(e), p.set(e, l)), l.render(a ? /* @__PURE__ */ i(a, { ...n }) : /* @__PURE__ */ r("div", { style: { padding: 16 }, children: [
+const N = { CheckoutPane: W }, u = /* @__PURE__ */ new WeakMap();
+function j(r, t) {
+  const a = N[t.component];
+  let l = u.get(r);
+  l || (l = C(r), u.set(r, l)), l.render(a ? /* @__PURE__ */ o(a, { ...t }) : /* @__PURE__ */ i("div", { style: { padding: 16 }, children: [
     "Unknown component ",
-    n.component
+    t.component
   ] }));
 }
-function _(e) {
-  const n = p.get(e);
-  n && (n.unmount(), p.delete(e));
+function A(r) {
+  const t = u.get(r);
+  t && (t.unmount(), u.delete(r));
 }
 export {
-  O as mount,
-  _ as unmount
+  j as mount,
+  A as unmount
 };

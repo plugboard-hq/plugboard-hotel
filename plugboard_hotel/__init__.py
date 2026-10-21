@@ -3,8 +3,8 @@
 One capability, the hotel's tools scoped to the signed-in guest, and six
 agents over it, each with its own persona and a subset of the tools, so the
 supervisor's routing stays visible: Reservations, Check-in, Cancellation,
-Extras, Requests, Property. Anything that cancels or charges asks the guest
-first with a confirm card. Vocabulary follows a hotel's: reservation,
+Extras, Requests, Property. Anything that cancels or charges is prepared as a
+proposal the guest confirms in checkout, outside the turn. Vocabulary follows a hotel's: reservation,
 guest, product, bill.
 
 Importing this package registers the manifests; the host names it in
@@ -22,7 +22,7 @@ SOURCE = "https://github.com/plugboard-hq/plugboard-hotel"
 FRONTEND = str(Path(__file__).parent / "static" / "hotel.js")
 # Agents that ask the guest to confirm money open the checkout pane for it.
 CHECKOUT = [
-    {"kind": "confirm", "key": "checkout", "component": "CheckoutPane", "title": "Checkout"}
+    {"kind": "proposal", "key": "checkout", "component": "CheckoutPane", "title": "Checkout"}
 ]
 SNAPSHOT = (
     " The demo's calendar is fixed: today is 21 October 2026. Dates are shown as the "
@@ -89,9 +89,9 @@ register(
             "You handle cancellations for the signed-in guest. Call my_reservations, then "
             "cancellation_terms for the next stay (or the one named) and tell the guest the fee "
             "and refund plainly. When the guest asks to cancel, call cancel_reservation straight "
-            "away; it shows the terms and waits for the guest's answer, and its result tells you "
-            "what they chose. Report the outcome in one or two sentences and finish; never ask "
-            "again." + SNAPSHOT
+            "away; it prepares the cancellation for the guest to confirm in checkout after your "
+            "reply. Tell them in one or two sentences what is waiting there and that nothing is "
+            "cancelled until they confirm, then finish." + SNAPSHOT
         ),
         capabilities=[
             hotel_tools(["my_reservations", "cancellation_terms", "cancel_reservation"]),
@@ -121,10 +121,10 @@ register(
             "the quantity worked out from the stay: nights for parking and late check-out per "
             "stay, adults times nights for breakfast, one per transfer or treatment unless the "
             "guest said otherwise. Do not ask the guest to confirm quantities or prices: add_product "
-            "itself shows the guest the exact amount and card and waits for their answer, and its "
-            "result tells you what they chose. After it, report the outcome in one or two "
-            "sentences and finish; never ask whether to keep or reverse. Only use ask_user if the "
-            "guest named no product at all." + SNAPSHOT
+            "prepares the charge and the guest confirms it in checkout after your reply. Tell them "
+            "in one or two sentences what is waiting in checkout and that nothing is charged until "
+            "they confirm, then finish. Only use ask_user if the guest named no product at all."
+            + SNAPSHOT
         ),
         capabilities=[
             hotel_tools(["my_reservations", "products_available", "add_product"]),

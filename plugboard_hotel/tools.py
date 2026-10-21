@@ -14,8 +14,8 @@ from datetime import date, datetime
 from pathlib import Path
 
 from plugboard.capabilities import Capability
+from plugboard.proposals import propose
 from plugboard.turn import current_turn
-from plugboard.widgets import ConfirmWidget
 
 DB = Path(__file__).parent / "data" / "hotel.sqlite"
 TODAY = date(2026, 10, 21)  # the seed's "today", so the demo does not drift
@@ -238,8 +238,9 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         )
 
     def cancel_reservation(number: str) -> str:
-        """Cancel a reservation after the guest confirms. Shows the terms and asks for
-        confirmation; cancels only on the confirming answer and records the refund."""
+        """Prepare the cancellation of a reservation for the guest to confirm in checkout.
+        Nothing is cancelled until they confirm there; your turn ends after you tell
+        them what is waiting."""
         turn = current_turn()
         guest = _guest()
         if guest is None:
@@ -254,42 +255,42 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         days_before = (date.fromisoformat(r["arrival"]) - TODAY).days
         fee = 0.0 if days_before >= 2 else r["rate_per_night"]
         refund = max(0.0, paid - fee)
-        answer = turn.ask(
-            ConfirmWidget(
-                prompt=f"Cancel reservation {r['number']}?",
-                lines=_stay_lines(r) + [{"label": "Cancellation fee", "value": _eur(fee)}],
-                amount=f"refund {_eur(refund)}" if refund else _eur(0),
-                card=f"{guest['card_brand']} •••• {guest['card_last4']}",
-                options=["Cancel the reservation", "Keep it"],
-                confirm_label="Cancel the reservation",
-                cancel_label="Keep it",
-            )
-        )
-        if answer.strip().lower() != "cancel the reservation":
-            turn.tool_call("cancel_reservation", {"number": r["number"]}, "kept")
-            return f"the guest chose to keep {r['number']} on the checkout card; nothing changed. Say so and finish."
-        with _conn() as c:
-            c.execute(
-                "update reservations set state = 'cancelled' where number = ?", (r["number"],)
-            )
-            if refund:
+        number_, last4, brand = r["number"], guest["card_last4"], guest["card_brand"]
+
+        def execute() -> str:
+            with _conn() as c:
                 c.execute(
-                    "insert into payments values (null, ?, ?, ?, ?, ?)",
-                    (
-                        r["number"],
-                        -refund,
-                        "Refund on cancellation",
-                        guest["card_last4"],
-                        TODAY.isoformat(),
-                    ),
+                    "update reservations set state = 'cancelled' where number = ?", (number_,)
                 )
+                if refund:
+                    c.execute(
+                        "insert into payments values (null, ?, ?, ?, ?, ?)",
+                        (number_, -refund, "Refund on cancellation", last4, TODAY.isoformat()),
+                    )
+            return (
+                f"Reservation {number_} is cancelled. Cancellation fee {_eur(fee)}; "
+                f"refund {_eur(refund)} to {brand} •••• {last4} within 5 working days."
+            )
+
+        propose(
+            f"Cancel reservation {r['number']}?",
+            execute,
+            lines=_stay_lines(r) + [{"label": "Cancellation fee", "value": _eur(fee)}],
+            amount=f"refund {_eur(refund)}" if refund else _eur(0),
+            card=f"{brand} •••• {last4}",
+            confirm_label="Cancel the reservation",
+            cancel_label="Keep it",
+            title=f"Cancel {r['number']}",
+        )
         turn.tool_call(
-            "cancel_reservation", {"number": r["number"]}, f"cancelled; refund {_eur(refund)}"
+            "cancel_reservation",
+            {"number": r["number"]},
+            f"prepared; fee {_eur(fee)}, refund {_eur(refund)}",
         )
         return (
-            f"the guest confirmed on the checkout card: cancelled {r['number']}; fee {_eur(fee)}; "
-            f"refund {_eur(refund)} to {guest['card_brand']} •••• {guest['card_last4']} within 5 "
-            "working days. Consent was given; do not ask again. Report it as done."
+            f"prepared the cancellation of {r['number']} for the guest to confirm in checkout: fee "
+            f"{_eur(fee)}, refund {_eur(refund)}. Tell the guest it is waiting in checkout and that "
+            "nothing is cancelled until they confirm there, then finish."
         )
 
     def products_available(number: str) -> str:
@@ -320,9 +321,10 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         )
 
     def add_product(number: str, product: str, quantity: int = 1) -> str:
-        """Add an extra to a stay and charge the card on file, after the guest confirms
-        the amount. quantity is units: nights for parking, person-nights for breakfast,
-        count for the rest. Proceeds only on the confirming answer."""
+        """Prepare an extra for the guest to confirm and pay in checkout. quantity is
+        units: nights for parking, person-nights for breakfast, count for the rest.
+        Nothing is added or charged until they confirm there; your turn ends after
+        you tell them what is waiting."""
         turn = current_turn()
         guest = _guest()
         if guest is None:
@@ -338,47 +340,45 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
             return f"no product called {product!r}; see products_available"
         qty = max(1, int(quantity))
         amount = p["price"] * qty
-        answer = turn.ask(
-            ConfirmWidget(
-                prompt=f"Add {p['name']} to your stay?",
-                lines=_stay_lines(r)
-                + [{"label": p["name"], "value": f"{qty} × {_eur(p['price'])} {p['unit']}"}],
-                amount=_eur(amount),
-                card=f"{guest['card_brand']} •••• {guest['card_last4']}",
-                options=[f"Pay {_eur(amount)}", "Not now"],
-                confirm_label=f"Pay {_eur(amount)}",
-                cancel_label="Not now",
-            )
+        number_, pid, pname, last4, brand = (
+            r["number"],
+            p["id"],
+            p["name"],
+            guest["card_last4"],
+            guest["card_brand"],
         )
-        if not answer.strip().lower().startswith("pay"):
-            turn.tool_call(
-                "add_product", {"number": r["number"], "product": p["name"]}, "declined"
-            )
-            return "the guest chose not to on the checkout card; nothing was added or charged. Say so and finish."
-        with _conn() as c:
-            c.execute(
-                "insert into reservation_products values (?, ?, ?, ?, ?)",
-                (r["number"], p["id"], qty, amount, TODAY.isoformat()),
-            )
-            c.execute(
-                "insert into payments values (null, ?, ?, ?, ?, ?)",
-                (
-                    r["number"],
-                    amount,
-                    f"{p['name']} x{qty}",
-                    guest["card_last4"],
-                    TODAY.isoformat(),
-                ),
-            )
+
+        def execute() -> str:
+            with _conn() as c:
+                c.execute(
+                    "insert into reservation_products values (?, ?, ?, ?, ?)",
+                    (number_, pid, qty, amount, TODAY.isoformat()),
+                )
+                c.execute(
+                    "insert into payments values (null, ?, ?, ?, ?, ?)",
+                    (number_, amount, f"{pname} x{qty}", last4, TODAY.isoformat()),
+                )
+            return f"{pname} x{qty} added to {number_}. {_eur(amount)} charged to {brand} •••• {last4}."
+
+        propose(
+            f"Add {pname} to your stay?",
+            execute,
+            lines=_stay_lines(r)
+            + [{"label": pname, "value": f"{qty} × {_eur(p['price'])} {p['unit']}"}],
+            amount=_eur(amount),
+            card=f"{brand} •••• {last4}",
+            confirm_label=f"Pay {_eur(amount)}",
+            cancel_label="Not now",
+            title=f"{pname} for {number_}",
+        )
         turn.tool_call(
             "add_product",
-            {"number": r["number"], "product": p["name"], "quantity": qty},
-            f"charged {_eur(amount)}",
+            {"number": r["number"], "product": pname, "quantity": qty},
+            f"prepared {_eur(amount)}",
         )
         return (
-            f"the guest confirmed on the checkout card and agreed the charge: added {p['name']} x{qty} "
-            f"to {r['number']} and charged {_eur(amount)} to {guest['card_brand']} •••• "
-            f"{guest['card_last4']}. Consent was given; do not ask again. Report it as done."
+            f"prepared {pname} x{qty} for {_eur(amount)} on {r['number']}, waiting in checkout. Tell the "
+            "guest what is waiting there and that nothing is charged until they confirm, then finish."
         )
 
     def create_request(number: str, text: str) -> str:
