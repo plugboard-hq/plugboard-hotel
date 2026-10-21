@@ -1,0 +1,17 @@
+[project]
+name = "plugboard-hotel"
+version = "0.1.0"
+description = "Guest-facing agents for a hotel on Plugboard: reservations, check-in, cancellation, extras, requests, property."
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plugboard_hotel"]
+
+[tool.ruff]
+line-length = 99
+target-version = "py312"
