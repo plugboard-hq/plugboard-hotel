@@ -13,10 +13,9 @@ from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
 
-from plugboard.artifacts import Dataset
 from plugboard.capabilities import Capability
 from plugboard.turn import current_turn
-from plugboard.widgets import ConfirmWidget, TableWidget
+from plugboard.widgets import ConfirmWidget
 
 DB = Path(__file__).parent / "data" / "hotel.sqlite"
 TODAY = date(2026, 10, 21)  # the seed's "today", so the demo does not drift
@@ -88,12 +87,43 @@ def _balance(c: sqlite3.Connection, number: str, r: sqlite3.Row) -> tuple[float,
 NOT_SIGNED_IN = "nobody is signed in; ask the guest to sign in to the hotel first"
 
 
+def _summary(number: str, guest: sqlite3.Row) -> str:
+    r = _reservation(number, guest)
+    with _conn() as c:
+        room, extras, paid = _balance(c, r["number"], r)
+        products = c.execute(
+            "select p.name, rp.quantity, rp.amount from reservation_products rp "
+            "join products p on p.id = rp.product_id where rp.reservation_number = ?",
+            (r["number"],),
+        ).fetchall()
+        requests = c.execute(
+            "select text, status from requests where reservation_number = ? order by id",
+            (r["number"],),
+        ).fetchall()
+        prop = c.execute("select * from property").fetchone()
+    return (
+        f"reservation {r['number']} at {prop['name']}, {prop['city']} ({prop['address']}); "
+        f"state {r['state']}\n"
+        f"room: {r['category']} ({r['category_description']}); dates {r['arrival']} to "
+        f"{r['departure']} ({_nights(r['arrival'], r['departure'])} nights); "
+        f"{r['adults']} adults, {r['children']} children; rate {_eur(r['rate_per_night'])} per night\n"
+        f"extras: {', '.join(f'{p[0]} x{p[1]} {_eur(p[2])}' for p in products) or 'none'}\n"
+        f"room total {_eur(room)}, extras {_eur(extras)}, paid {_eur(paid)}, "
+        f"due {_eur(room + extras - paid)}\n"
+        f"estimated arrival: {r['estimated_arrival'] or 'not given'}; notes: {r['notes'] or 'none'}\n"
+        f"requests: {', '.join(f'{q[0]} ({q[1]})' for q in requests) or 'none'}\n"
+        f"check-in from {prop['check_in_from']}, check-out until {prop['check_out_until']}; "
+        f"card on file {guest['card_brand']} •••• {guest['card_last4']}"
+    )
+
+
 def hotel_tools(only: list[str] | None = None) -> Capability:
     """The hotel's tools, or the subset named in ``only``, as a capability."""
 
     def my_reservations() -> str:
-        """The signed-in guest's reservations, upcoming first, with their state. Shows
-        them as a table. Call this first for any question about a stay."""
+        """The signed-in guest's reservations, upcoming first, with the full summary of
+        the next upcoming stay (room, dates, guests, extras, paid and due). Call this
+        first; for most questions it is the only call needed."""
         turn = current_turn()
         guest = _guest()
         if guest is None:
@@ -101,51 +131,35 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
             return NOT_SIGNED_IN
         with _conn() as c:
             rows = c.execute(
-                "select r.number, k.name as category, r.arrival, r.departure, r.adults, r.children, r.state "
-                "from reservations r join categories k on k.id = r.category_id "
+                "select r.number, k.name as category, r.arrival, r.departure, r.adults, "
+                "r.children, r.state from reservations r join categories k on k.id = r.category_id "
                 "where r.customer_id = ? order by r.arrival desc",
                 (guest["id"],),
             ).fetchall()
-        columns = ["reservation", "room", "arrival", "departure", "adults", "children", "state"]
-        data = [
-            [
-                r["number"],
-                r["category"],
-                r["arrival"],
-                r["departure"],
-                r["adults"],
-                r["children"],
-                r["state"],
-            ]
-            for r in rows
-        ]
-        ds = turn.artifacts.publish(
-            Dataset(
-                title=f"{guest['name'].split()[0]}'s stays at Hotel Aurora",
-                columns=columns,
-                rows=data,
-                created_by=turn.active_agent or "reservations",
-            )
-        )
-        turn.tool_call("my_reservations", {}, f"{len(rows)} reservations -> dataset {ds.id}")
-        turn.show(
-            TableWidget(
-                title=ds.title, columns=columns, rows=data, total_rows=len(data), dataset_id=ds.id
-            )
-        )
         upcoming = [
             r for r in rows if r["departure"] >= TODAY.isoformat() and r["state"] != "cancelled"
         ]
+        turn.tool_call(
+            "my_reservations", {}, f"{len(rows)} reservations, {len(upcoming)} upcoming"
+        )
         lines = "\n".join(
-            f"{r['number']}: {r['category']}, {_fmt_date(r['arrival'])} to {_fmt_date(r['departure'])}, {r['adults']} adults {r['children']} children, {r['state']}"
+            f"{r['number']}: {r['category']}, {_fmt_date(r['arrival'])} to {_fmt_date(r['departure'])}, "
+            f"{r['adults']} adults {r['children']} children, {r['state']}"
             for r in rows
         )
-        return f"guest {guest['name']} ({guest['loyalty'] or 'no loyalty tier'}); today is {TODAY.isoformat()}; {len(upcoming)} upcoming\n{lines}"
+        head = (
+            f"guest {guest['name']} ({guest['loyalty'] or 'no loyalty tier'}); today is "
+            f"{TODAY.isoformat()}; {len(upcoming)} upcoming\n{lines}"
+        )
+        if upcoming:
+            nxt = min(upcoming, key=lambda r: r["arrival"])
+            return head + "\n\nnext stay in full:\n" + _summary(nxt["number"], guest)
+        return head
 
     def stay_summary(number: str) -> str:
-        """Everything about one reservation: room, dates, guests, rate, extras, what has
-        been paid and what is still due, special notes. Use the reservation number from
-        my_reservations."""
+        """Everything about one reservation by number: room, dates, guests, rate, extras,
+        what has been paid and what is due, notes. my_reservations already includes this
+        for the next stay; use this for another one."""
         turn = current_turn()
         guest = _guest()
         if guest is None:
@@ -154,32 +168,12 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         if r is None:
             turn.tool_call("stay_summary", {"number": number}, "not this guest's reservation")
             return f"no reservation {number} for {guest['name']}"
-        with _conn() as c:
-            room, extras, paid = _balance(c, r["number"], r)
-            products = c.execute(
-                "select p.name, rp.quantity, rp.amount from reservation_products rp join products p on p.id = rp.product_id where rp.reservation_number = ?",
-                (r["number"],),
-            ).fetchall()
-            requests = c.execute(
-                "select text, status from requests where reservation_number = ? order by id",
-                (r["number"],),
-            ).fetchall()
-            prop = c.execute("select * from property").fetchone()
         turn.tool_call(
             "stay_summary",
             {"number": r["number"]},
             f"{r['category']}, {_fmt_date(r['arrival'])} to {_fmt_date(r['departure'])}, {r['state']}",
         )
-        return (
-            f"reservation {r['number']} at {prop['name']}, {prop['city']} ({prop['address']}); state {r['state']}\n"
-            f"room: {r['category']} ({r['category_description']}); dates {r['arrival']} to {r['departure']} ({_nights(r['arrival'], r['departure'])} nights); "
-            f"{r['adults']} adults, {r['children']} children; rate {_eur(r['rate_per_night'])} per night\n"
-            f"extras: {', '.join(f'{p[0]} x{p[1]} {_eur(p[2])}' for p in products) or 'none'}\n"
-            f"room total {_eur(room)}, extras {_eur(extras)}, paid {_eur(paid)}, due {_eur(room + extras - paid)}\n"
-            f"estimated arrival: {r['estimated_arrival'] or 'not given'}; notes: {r['notes'] or 'none'}\n"
-            f"requests: {', '.join(f'{q[0]} ({q[1]})' for q in requests) or 'none'}\n"
-            f"check-in from {prop['check_in_from']}, check-out until {prop['check_out_until']}; card on file {guest['card_brand']} •••• {guest['card_last4']}"
-        )
+        return _summary(r["number"], guest)
 
     def check_in(number: str, estimated_arrival: str, notes: str = "") -> str:
         """Online check-in for an upcoming stay: records the estimated arrival time
