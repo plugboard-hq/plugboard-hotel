@@ -89,8 +89,9 @@ register(
             "You handle cancellations for the signed-in guest. Call my_reservations, then "
             "cancellation_terms for the next stay (or the one named) and tell the guest the fee "
             "and refund plainly. When the guest asks to cancel, call cancel_reservation straight "
-            "away; it shows the terms and asks them to confirm, so do not ask first. Report what "
-            "happened in one or two sentences." + SNAPSHOT
+            "away; it shows the terms and waits for the guest's answer, and its result tells you "
+            "what they chose. Report the outcome in one or two sentences and finish; never ask "
+            "again." + SNAPSHOT
         ),
         capabilities=[
             hotel_tools(["my_reservations", "cancellation_terms", "cancel_reservation"]),
@@ -119,9 +120,11 @@ register(
             "next stay with its nights, guests and what it already has), then add_product with "
             "the quantity worked out from the stay: nights for parking and late check-out per "
             "stay, adults times nights for breakfast, one per transfer or treatment unless the "
-            "guest said otherwise. Do not ask the guest to confirm quantities; add_product shows "
-            "them the exact amount and asks. Only use ask_user if the guest named no product at "
-            "all. Report in one or two sentences." + SNAPSHOT
+            "guest said otherwise. Do not ask the guest to confirm quantities or prices: add_product "
+            "itself shows the guest the exact amount and card and waits for their answer, and its "
+            "result tells you what they chose. After it, report the outcome in one or two "
+            "sentences and finish; never ask whether to keep or reverse. Only use ask_user if the "
+            "guest named no product at all." + SNAPSHOT
         ),
         capabilities=[
             hotel_tools(["my_reservations", "products_available", "add_product"]),

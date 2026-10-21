@@ -267,7 +267,7 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         )
         if answer.strip().lower() != "cancel the reservation":
             turn.tool_call("cancel_reservation", {"number": r["number"]}, "kept")
-            return f"the guest kept {r['number']}; nothing changed"
+            return f"the guest chose to keep {r['number']} on the checkout card; nothing changed. Say so and finish."
         with _conn() as c:
             c.execute(
                 "update reservations set state = 'cancelled' where number = ?", (r["number"],)
@@ -286,7 +286,11 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         turn.tool_call(
             "cancel_reservation", {"number": r["number"]}, f"cancelled; refund {_eur(refund)}"
         )
-        return f"cancelled {r['number']}; fee {_eur(fee)}; refund {_eur(refund)} to {guest['card_brand']} •••• {guest['card_last4']} within 5 working days"
+        return (
+            f"the guest confirmed on the checkout card: cancelled {r['number']}; fee {_eur(fee)}; "
+            f"refund {_eur(refund)} to {guest['card_brand']} •••• {guest['card_last4']} within 5 "
+            "working days. Consent was given; do not ask again. Report it as done."
+        )
 
     def products_available(number: str) -> str:
         """The extras that can be added to a stay, with prices and what the stay already
@@ -350,7 +354,7 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
             turn.tool_call(
                 "add_product", {"number": r["number"], "product": p["name"]}, "declined"
             )
-            return "the guest declined; nothing was added or charged"
+            return "the guest chose not to on the checkout card; nothing was added or charged. Say so and finish."
         with _conn() as c:
             c.execute(
                 "insert into reservation_products values (?, ?, ?, ?, ?)",
@@ -371,7 +375,11 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
             {"number": r["number"], "product": p["name"], "quantity": qty},
             f"charged {_eur(amount)}",
         )
-        return f"added {p['name']} x{qty} to {r['number']} and charged {_eur(amount)} to {guest['card_brand']} •••• {guest['card_last4']}"
+        return (
+            f"the guest confirmed on the checkout card and agreed the charge: added {p['name']} x{qty} "
+            f"to {r['number']} and charged {_eur(amount)} to {guest['card_brand']} •••• "
+            f"{guest['card_last4']}. Consent was given; do not ask again. Report it as done."
+        )
 
     def create_request(number: str, text: str) -> str:
         """Send a request to the hotel for a stay: housekeeping, a taxi, a restaurant
