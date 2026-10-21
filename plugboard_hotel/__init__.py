@@ -36,15 +36,19 @@ register(
         routing_description=(
             "The guest's stays at the hotel: 'my booking', 'when do I arrive', 'what room do I "
             "have', 'how much is left to pay', 'show my upcoming trip'. Give it the question "
-            "and the reservation number if the guest said one; it returns the stay details and "
-            "shows the reservations as a table. It does not change anything; for check-in, "
-            "cancelling, extras or requests use those agents."
+            "and the reservation number if the guest said one; it returns the stay details. Also "
+            "the agent for a checkout event (a payment or cancellation confirmed or declined): it "
+            "confirms the outcome and gives the updated booking. It does not change anything "
+            "itself; for check-in, cancelling, extras or requests use those agents."
         ),
         persona=(
             "You tell the signed-in guest about their reservations. Call my_reservations once; it "
             "includes the next stay in full. Call stay_summary only for a different stay the "
             "guest names. Answer in two or three sentences with dates, room, guests and what "
-            "is due, then finish." + SNAPSHOT
+            "is due, then finish. For a checkout event that confirmed a payment or cancellation, "
+            "call my_reservations and reply as a booking confirmation: what the stay now "
+            "includes, what was charged or refunded and to which card, and what is still due. "
+            "For a declined checkout, one sentence: nothing changed, and they can ask again." + SNAPSHOT
         ),
         capabilities=[hotel_tools(["my_reservations", "stay_summary"]), ask_user()],
         examples=["show me my upcoming stay", "how much is left to pay on my booking?"],
