@@ -17,8 +17,6 @@ from plugboard.capabilities import Capability
 from plugboard.proposals import propose
 from plugboard.turn import current_turn
 
-from plugboard_hotel.widgets import StayWidget
-
 DB = Path(__file__).parent / "data" / "hotel.sqlite"
 TODAY = date(2026, 10, 21)  # the seed's "today", so the demo does not drift
 
@@ -149,9 +147,8 @@ def _stay(number: str, guest: sqlite3.Row) -> dict:
 
 
 def _show_stay(number: str, guest: sqlite3.Row) -> None:
-    """Put the stay on screen as a work surface."""
-    data = _stay(number, guest)
-    current_turn().show(StayWidget(title=f"Your stay · {number}", stay=data))
+    """Publish the stay as an artifact: the host opens it in the Reservations pane."""
+    current_turn().publish("stay", f"Your stay · {number}", _stay(number, guest))
 
 
 def _summary(number: str, guest: sqlite3.Row) -> str:

@@ -22,15 +22,7 @@ SOURCE = "https://github.com/plugboard-hq/plugboard-hotel"
 FRONTEND = str(Path(__file__).parent / "static" / "hotel.js")
 # Agents that ask the guest to confirm money open the checkout pane for it.
 # The Reservations agent puts the stay on screen as a work surface.
-STAY = [
-    {
-        "kind": "widget",
-        "widget_kind": "stay",
-        "key": "stay",
-        "component": "StayPane",
-        "title": "Your stay",
-    }
-]
+STAY = [{"kind": "artifact", "when": "stay", "component": "StayPane", "title": "Your stay"}]
 CHECKOUT = [
     {"kind": "proposal", "key": "checkout", "component": "CheckoutPane", "title": "Checkout"}
 ]

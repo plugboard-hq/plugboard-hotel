@@ -7,7 +7,7 @@ const { Pane } = ui;
  * The booking as a work surface: the confirmation a guest would print, with
  * the things they do with it. Share by email and add to calendar are the
  * hotel's own actions; download prints the summary to PDF through the
- * browser. The data is the stay widget the Reservations agent showed.
+ * browser. The data is the stay artifact the Reservations agent published.
  */
 const eur = (v) => `€${Number(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const long = (iso) => new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -17,8 +17,8 @@ const row = { display: "flex", justifyContent: "space-between", gap: 16, padding
 const btn = { padding: "7px 12px", borderRadius: 8, border: `1px solid ${theme.line}`, background: theme.surface, color: theme.ink, fontSize: 13, cursor: "pointer" };
 const STATE = { confirmed: "Confirmed", "checked-in online": "Checked in online", "checked-in": "Checked in", "checked-out": "Checked out", cancelled: "Cancelled" };
 
-export default function StayPane({ widget, agentTitle, onClose }) {
-  const s = widget?.stay;
+export default function StayPane({ record, artifact, agentTitle, onClose }) {
+  const s = record || artifact?.payload;
   const [sent, setSent] = useState(null);
   const [busy, setBusy] = useState(false);
   if (!s) {
