@@ -1,8 +1,9 @@
 import { createRoot } from "react-dom/client";
 import CheckoutPane from "./CheckoutPane.jsx";
+import StayPane from "./StayPane.jsx";
 
 /** mount(el, ctx) / unmount(el): the whole contract with the host. */
-const COMPONENTS = { CheckoutPane };
+const COMPONENTS = { CheckoutPane, StayPane };
 const roots = new WeakMap();
 
 export function mount(el, ctx) {

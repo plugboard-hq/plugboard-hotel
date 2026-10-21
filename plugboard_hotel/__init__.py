@@ -21,6 +21,16 @@ from plugboard_hotel.tools import hotel_tools
 SOURCE = "https://github.com/plugboard-hq/plugboard-hotel"
 FRONTEND = str(Path(__file__).parent / "static" / "hotel.js")
 # Agents that ask the guest to confirm money open the checkout pane for it.
+# The Reservations agent puts the stay on screen as a work surface.
+STAY = [
+    {
+        "kind": "widget",
+        "widget_kind": "stay",
+        "key": "stay",
+        "component": "StayPane",
+        "title": "Your stay",
+    }
+]
 CHECKOUT = [
     {"kind": "proposal", "key": "checkout", "component": "CheckoutPane", "title": "Checkout"}
 ]
@@ -44,15 +54,18 @@ register(
         persona=(
             "You tell the signed-in guest about their reservations. Call my_reservations once; it "
             "includes the next stay in full. Call stay_summary only for a different stay the "
-            "guest names. Answer in two or three sentences with dates, room, guests and what "
-            "is due, then finish. For a checkout event that confirmed a payment or cancellation, "
+            "guest names. The booking summary opens on screen as a work surface, so answer in two "
+            "sentences: the headline of the stay and what is due, then finish. For a checkout event that confirmed a payment or cancellation, "
             "call my_reservations and reply as a booking confirmation: what the stay now "
             "includes, what was charged or refunded and to which card, and what is still due. "
-            "For a declined checkout, one sentence: nothing changed, and they can ask again." + SNAPSHOT
+            "For a declined checkout, one sentence: nothing changed, and they can ask again."
+            + SNAPSHOT
         ),
         capabilities=[hotel_tools(["my_reservations", "stay_summary"]), ask_user()],
         examples=["show me my upcoming stay", "how much is left to pay on my booking?"],
         source=SOURCE,
+        frontend=FRONTEND,
+        surfaces=STAY,
         max_iters=5,
     )
 )

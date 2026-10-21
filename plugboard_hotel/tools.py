@@ -17,6 +17,8 @@ from plugboard.capabilities import Capability
 from plugboard.proposals import propose
 from plugboard.turn import current_turn
 
+from plugboard_hotel.widgets import StayWidget
+
 DB = Path(__file__).parent / "data" / "hotel.sqlite"
 TODAY = date(2026, 10, 21)  # the seed's "today", so the demo does not drift
 
@@ -87,6 +89,71 @@ def _balance(c: sqlite3.Connection, number: str, r: sqlite3.Row) -> tuple[float,
 NOT_SIGNED_IN = "nobody is signed in; ask the guest to sign in to the hotel first"
 
 
+def _stay(number: str, guest: sqlite3.Row) -> dict:
+    """The booking as structured data, for the stay pane."""
+    r = _reservation(number, guest)
+    with _conn() as c:
+        room, extras, paid = _balance(c, r["number"], r)
+        products = c.execute(
+            "select p.name, rp.quantity, rp.amount, p.unit from reservation_products rp "
+            "join products p on p.id = rp.product_id where rp.reservation_number = ?",
+            (r["number"],),
+        ).fetchall()
+        requests = c.execute(
+            "select text, status, created_at from requests where reservation_number = ? order by id",
+            (r["number"],),
+        ).fetchall()
+        payments = c.execute(
+            "select amount, description, card_last4, created_at from payments "
+            "where reservation_number = ? order by id",
+            (r["number"],),
+        ).fetchall()
+        prop = c.execute("select * from property").fetchone()
+    return {
+        "number": r["number"],
+        "state": r["state"],
+        "guest": {
+            "name": guest["name"],
+            "email": guest["email"],
+            "phone": guest["phone"],
+            "loyalty": guest["loyalty"],
+        },
+        "property": {
+            "name": prop["name"],
+            "city": prop["city"],
+            "address": prop["address"],
+            "phone": prop["phone"],
+            "check_in_from": prop["check_in_from"],
+            "check_out_until": prop["check_out_until"],
+            "currency": prop["currency"],
+        },
+        "room": {"category": r["category"], "description": r["category_description"]},
+        "arrival": r["arrival"],
+        "departure": r["departure"],
+        "nights": _nights(r["arrival"], r["departure"]),
+        "adults": r["adults"],
+        "children": r["children"],
+        "rate_per_night": r["rate_per_night"],
+        "estimated_arrival": r["estimated_arrival"] or "",
+        "notes": r["notes"] or "",
+        "extras": [
+            {"name": p[0], "quantity": p[1], "amount": p[2], "unit": p[3]} for p in products
+        ],
+        "requests": [{"text": q[0], "status": q[1], "at": q[2]} for q in requests],
+        "payments": [
+            {"amount": p[0], "description": p[1], "card_last4": p[2], "at": p[3]} for p in payments
+        ],
+        "totals": {"room": room, "extras": extras, "paid": paid, "due": room + extras - paid},
+        "card": f"{guest['card_brand']} •••• {guest['card_last4']}",
+    }
+
+
+def _show_stay(number: str, guest: sqlite3.Row) -> None:
+    """Put the stay on screen as a work surface."""
+    data = _stay(number, guest)
+    current_turn().show(StayWidget(title=f"Your stay · {number}", stay=data))
+
+
 def _summary(number: str, guest: sqlite3.Row) -> str:
     r = _reservation(number, guest)
     with _conn() as c:
@@ -153,7 +220,13 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         )
         if upcoming:
             nxt = min(upcoming, key=lambda r: r["arrival"])
-            return head + "\n\nnext stay in full:\n" + _summary(nxt["number"], guest)
+            _show_stay(nxt["number"], guest)
+            return (
+                head
+                + "\n\nnext stay in full (the booking summary is on screen as a work surface, so "
+                "do not repeat every line; give the headline and what is due):\n"
+                + _summary(nxt["number"], guest)
+            )
         return head
 
     def stay_summary(number: str) -> str:
@@ -173,6 +246,7 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
             {"number": r["number"]},
             f"{r['category']}, {_fmt_date(r['arrival'])} to {_fmt_date(r['departure'])}, {r['state']}",
         )
+        _show_stay(r["number"], guest)
         return _summary(r["number"], guest)
 
     def check_in(number: str, estimated_arrival: str, notes: str = "") -> str:
