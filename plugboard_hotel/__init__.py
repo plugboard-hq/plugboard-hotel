@@ -53,7 +53,10 @@ register(
             "For a declined checkout, one sentence: nothing changed, and they can ask again."
             + SNAPSHOT
         ),
-        capabilities=[hotel_tools(["my_reservations", "stay_summary"]), ask_user()],
+        capabilities=[
+            hotel_tools(["my_reservations", "stay_summary"], show_stay=True),
+            ask_user(),
+        ],
         examples=["show me my upcoming stay", "how much is left to pay on my booking?"],
         source=SOURCE,
         frontend=FRONTEND,

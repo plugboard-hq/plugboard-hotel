@@ -181,8 +181,12 @@ def _summary(number: str, guest: sqlite3.Row) -> str:
     )
 
 
-def hotel_tools(only: list[str] | None = None) -> Capability:
-    """The hotel's tools, or the subset named in ``only``, as a capability."""
+def hotel_tools(only: list[str] | None = None, show_stay: bool = False) -> Capability:
+    """The hotel's tools, or the subset named in ``only``, as a capability.
+
+    ``show_stay`` makes ``my_reservations`` publish the next stay as an artifact, so the
+    booking opens in the pane. Only the agent whose job is the stay wants that; the others
+    look a reservation up on the way to something else and should not open it."""
 
     def my_reservations() -> str:
         """The signed-in guest's reservations, upcoming first, with the full summary of
@@ -217,13 +221,15 @@ def hotel_tools(only: list[str] | None = None) -> Capability:
         )
         if upcoming:
             nxt = min(upcoming, key=lambda r: r["arrival"])
-            _show_stay(nxt["number"], guest)
-            return (
-                head
-                + "\n\nnext stay in full (the booking summary is on screen as a work surface, so "
-                "do not repeat every line; give the headline and what is due):\n"
-                + _summary(nxt["number"], guest)
-            )
+            if show_stay:
+                _show_stay(nxt["number"], guest)
+                note = (
+                    "the booking summary is on screen as a work surface, so do not repeat "
+                    "every line; give the headline and what is due"
+                )
+            else:
+                note = "use what the task needs; do not recite the whole booking"
+            return f"{head}\n\nnext stay in full ({note}):\n" + _summary(nxt["number"], guest)
         return head
 
     def stay_summary(number: str) -> str:
